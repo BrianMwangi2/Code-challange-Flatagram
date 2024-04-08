@@ -1,62 +1,96 @@
-// write your code here
-// src/index.js
-const baseURL = 'http://localhost:3000';
+
+
+const baseURL = 'http://localhost:3000'; // Update this to match your server URL
+
 document.addEventListener('DOMContentLoaded', () => {
-    const image=document.getElementById(`card-image`);
-    fetchImageData(baseURL + '/images');
+    fetchImageData();
+    setupEventListeners();
 });
 
-    // Function to fetch image data and initialize the page
-const fetchImageData = () => {
-        fetch(`${baseURL}/images/1`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(imageData => {
+// making imageData a variable 
+let imageData = null;
+// making fetch A FUnction
+function fetchImageData() {
+    fetch(`${baseURL}/images`)
+        .then(response => { // A promise to the fetch 
+            if (!response.ok) {
+                throw new Error('Failed to fetch image data');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (Array.isArray(data) && data.length > 0) {
+                imageData = data[0]; // Assuming you want to update the first image
                 updateImage(imageData);
-                setupLikeButton(imageData.id);
-            })
-            .catch(error => {
-                console.error('Error fetching image data:', error);
-            });
-};
-
-    // Function to update the image details on the page
-const updateImage = (imageData) => {
-        document.getElementById('imageTitle').textContent = imageData.title;
-        document.getElementById('image').src = `${baseURL}/${imageData.image}`;
-        document.getElementById('likeCount').textContent = imageData.likes;
-};
-
-    // Function to setup the like button click event
-const setupLikeButton = (imageId) => {
-        const likeButton = document.getElementById('likeButton');
-
-        likeButton.addEventListener('click', () => {
-            fetch(`${baseURL}/images/${imageId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ incrementLikes: true })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(updatedImageData => {
-                document.getElementById('likeCount').textContent = updatedImageData.likes;
-            })
-            .catch(error => {
-                console.error('Error updating likes:', error);
-            });
+                displayComments(imageData.comments);
+            } else {
+                throw new Error('No image data found');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching image data:', error.message);// incase of an error the catch will be able to depict the error
         });
-    };
+}
+// function to update the image with the variable image data as a param
+function updateImage(imageData) {
+    const imageElement = document.getElementById('card-image');
+    const titleElement = document.getElementById('card-title');
+    const likeCountElement = document.getElementById('like-count');
 
-    // Initialize the page
-    fetchImageData();
+    titleElement.textContent = imageData.title;
+   //imageElement.src = `http://localhost:3000/${imageData.image}`;// Theres a problem here !
+    likeCountElement.textContent = `${imageData.likes} likes`;
+}
+// function to display comments  on page load and when adding a comment
+function displayComments(comments) {
+    const commentsList = document.getElementById('comments-list');
+    commentsList.innerHTML = '';
+
+    if (Array.isArray(comments)) { // adding an array condition 
+        comments.forEach(comment => {
+            const li = document.createElement('li');
+            li.textContent = comment.content;
+            commentsList.appendChild(li);
+        });
+    } else {
+        console.warn('Comments data is missing or invalid:', comments);
+    }
+}
+// adding event listeners for the like button and also a function which is click
+function setupEventListeners() {
+    const likeButton = document.getElementById('like-button');
+    likeButton.addEventListener('click', () => {
+        if (imageData) {
+            imageData.likes++;
+            updateImage(imageData);
+            updateImageOnServer(imageData.id, { likes: imageData.likes });
+        }
+    });
+}
+// This function us to  add a new image to the server and then display it in the browser
+function updateImageOnServer(imageId, updatedData) {
+    fetch(`${baseURL}/images/${imageId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update image on server');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Image updated successfully on server:', data);
+    })
+    .catch(error => {
+        console.error('Error updating image on server:', error.message);
+    });
+}
+fetchImageData();
+updateImage();
+displayComments();
+setupEventListeners();
+updateImageOnServer();
